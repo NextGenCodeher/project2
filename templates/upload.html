@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure File Upload</title>
+    <style>
+        /* --- Light Blue Theme --- */
+        :root {
+            --primary-blue: #29b6f6;
+            --light-blue-bg: #e1f5fe;
+            --dark-text: #01579b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--light-blue-bg) 0%, #b3e5fc 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+        }
+
+        .upload-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(41, 182, 246, 0.3);
+            width: 400px;
+            text-align: center;
+            border: 1px solid #e1f5fe;
+        }
+
+        h2 { color: var(--dark-text); margin-bottom: 20px; }
+
+        /* Styled File Drop Area */
+        .file-drop-area {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            width: 100%;
+            padding: 30px;
+            border: 2px dashed #b3e5fc;
+            border-radius: 10px;
+            transition: 0.2s;
+            background-color: #fafbfd;
+            box-sizing: border-box;
+        }
+
+        .file-drop-area:hover { background-color: #f0f8ff; border-color: var(--primary-blue); }
+
+        .file-msg {
+            font-size: 14px;
+            color: #666;
+            pointer-events: none;
+        }
+
+        /* The actual input is hidden but covers the area */
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        /* Upload Button */
+        .upload-btn {
+            margin-top: 20px;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(to right, #4fc3f7, var(--primary-blue));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(41, 182, 246, 0.4);
+        }
+
+        .upload-btn:hover { transform: translateY(-2px); }
+        .upload-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none;}
+
+        /* Progress Bar */
+        .progress-container {
+            margin-top: 20px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            height: 10px;
+            width: 100%;
+            overflow: hidden;
+            display: none; /* Hidden until upload starts */
+        }
+
+        .progress-bar {
+            background-color: var(--primary-blue);
+            height: 100%;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        #status-msg {
+            margin-top: 15px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--dark-text);
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="upload-card">
+        <h2>📂 Secure File Upload</h2>
+        
+        <div class="file-drop-area">
+            <span class="file-msg">Drag & Drop or Click to Select</span>
+            <input type="file" class="file-input" id="fileInput" name="file">
+        </div>
+        
+        <p id="fileName" style="font-size: 12px; color: gray; margin-top: 10px; min-height: 18px;"></p>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <button class="upload-btn" onclick="uploadFile()">Upload Securely</button>
+        <p id="status-msg"></p>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileNameDisplay = document.getElementById('fileName');
+
+        // Update the text when a file is selected
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files.length > 0) {
+                fileNameDisplay.textContent = "Selected: " + this.files[0].name;
+            }
+        });
+
+        function uploadFile() {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("Please select a file first!");
+                return;
+            }
+
+            // Prepare the file for the POST request
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+            const progressBar = document.getElementById('progressBar');
+            const progressContainer = document.getElementById('progressContainer');
+            const statusMsg = document.getElementById('status-msg');
+
+            // Reset UI
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            statusMsg.innerText = "Uploading...";
+            statusMsg.style.color = "#01579b";
+
+            // Track upload progress
+            xhr.upload.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    const percentComplete = (event.loaded / event.total) * 100;
+                    progressBar.style.width = percentComplete + '%';
+                }
+            };
+
+            // Handle completion
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    statusMsg.innerText = "✅ Upload Successful!";
+                    statusMsg.style.color = "green";
+                    
+                    // Optional: parse the server response if needed
+                    // const response = JSON.parse(xhr.responseText);
+                } else {
+                    statusMsg.innerText = "❌ Upload Failed. Server Error.";
+                    statusMsg.style.color = "red";
+                }
+            };
+
+            // Handle network errors
+            xhr.onerror = function() {
+                statusMsg.innerText = "❌ Network Error.";
+                statusMsg.style.color = "red";
+            };
+
+            // Send to the Flask route '/upload'
+            xhr.open('POST', '/upload', true);
+            xhr.send(formData);
+        }
+    </script>
+
+</body>
+</html>
